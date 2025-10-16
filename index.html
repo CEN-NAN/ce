@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园之星评选 - 校花校草投票系统</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    
+    <!-- Tailwind配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5', // 主色调：靛蓝色，代表信任和专业
+                        secondary: '#EC4899', // 辅助色：粉色，用于校花评选
+                        tertiary: '#3B82F6', // 第三色：蓝色，用于校草评选
+                        neutral: '#1F2937', // 中性色：深灰
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .card-shadow {
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            }
+            .transition-custom {
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-neutral">
+    <div class="min-h-screen flex flex-col">
+        <!-- 顶部导航栏 -->
+        <header class="bg-white shadow-md sticky top-0 z-50">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-[clamp(1.5rem,3vw,2rem)] font-bold text-primary">
+                        <i class="fa fa-star mr-2"></i>校园之星评选
+                    </h1>
+                    
+                    <!-- 切换标签 -->
+                    <div class="relative w-64 h-10 rounded-full bg-gray-200 overflow-hidden">
+                        <div id="tabIndicator" class="absolute left-0 top-0 w-1/2 h-full bg-primary rounded-full transition-custom flex items-center justify-center text-white font-medium">
+                            校花评选
+                        </div>
+                        <div class="flex h-full">
+                            <div id="femaleTab" class="w-1/2 flex items-center justify-center cursor-pointer z-10 transition-custom hover:text-primary font-medium">
+                                校花评选
+                            </div>
+                            <div id="maleTab" class="w-1/2 flex items-center justify-center cursor-pointer z-10 transition-custom hover:text-primary font-medium">
+                                校草评选
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="flex-grow container mx-auto px-4 py-6">
+            <!-- 校花评选界面 -->
+            <div id="femaleSection" class="transition-custom">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 左侧：候选人列表 -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-xl p-5 shadow-lg">
+                            <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-200 text-secondary">
+                                <i class="fa fa-users mr-2"></i>校花候选人
+                            </h2>
+                            
+                            <div id="femaleCandidates" class="space-y-4 max-h-[500px] overflow-y-auto scrollbar-hide pr-2">
+                                <!-- 候选人将通过JavaScript动态生成 -->
+                            </div>
+                            
+                            <!-- 添加候选人按钮（管理员可见） -->
+                            <div id="addFemaleCandidateContainer" class="hidden mt-4">
+                                <button id="addFemaleCandidate" class="w-full bg-secondary hover:bg-secondary/90 text-white py-2 px-4 rounded-lg transition-custom flex items-center justify-center">
+                                    <i class="fa fa-plus mr-2"></i>添加校花候选人
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 右侧：排行榜和评论 -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- 排行榜 -->
+                        <div class="bg-white rounded-xl p-5 shadow-lg">
+                            <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-200 text-secondary">
+                                <i class="fa fa-bar-chart mr-2"></i>实时排行榜
+                            </h2>
+                            <div class="h-[300px]">
+                                <canvas id="femaleChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- 评论区 -->
+                        <div class="bg-white rounded-xl p-5 shadow-lg">
+                            <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-200 text-secondary">
+                                <i class="fa fa-comments mr-2"></i>评论区
+                            </h2>
+                            
+                            <!-- 评论输入 -->
+                            <div class="mb-6">
+                                <textarea id="femaleCommentInput" class="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-secondary/50 resize-none" rows="3" placeholder="发表你的评论..."></textarea>
+                                <div class="flex justify-end mt-2">
+                                    <button id="femalePostComment" class="bg-secondary hover:bg-secondary/90 text-white py-2 px-4 rounded-lg transition-custom">
+                                        <i class="fa fa-paper-plane mr-1"></i> 发表评论
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 评论列表 -->
+                            <div id="femaleComments" class="space-y-4 max-h-[300px] overflow-y-auto scrollbar-hide pr-2">
+                                <!-- 评论将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 校草评选界面（默认隐藏） -->
+            <div id="maleSection" class="hidden transition-custom">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 左侧：候选人列表 -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-xl p-5 shadow-lg">
+                            <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-200 text-tertiary">
+                                <i class="fa fa-users mr-2"></i>校草候选人
+                            </h2>
+                            
+                            <div id="maleCandidates" class="space-y-4 max-h-[500px] overflow-y-auto scrollbar-hide pr-2">
+                                <!-- 候选人将通过JavaScript动态生成 -->
+                            </div>
+                            
+                            <!-- 添加候选人按钮（管理员可见） -->
+                            <div id="addMaleCandidateContainer" class="hidden mt-4">
+                                <button id="addMaleCandidate" class="w-full bg-tertiary hover:bg-tertiary/90 text-white py-2 px-4 rounded-lg transition-custom flex items-center justify-center">
+                                    <i class="fa fa-plus mr-2"></i>添加校草候选人
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 右侧：排行榜和评论 -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- 排行榜 -->
+                        <div class="bg-white rounded-xl p-5 shadow-lg">
+                            <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-200 text-tertiary">
+                                <i class="fa fa-bar-chart mr-2"></i>实时排行榜
+                            </h2>
+                            <div class="h-[300px]">
+                                <canvas id="maleChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- 评论区 -->
+                        <div class="bg-white rounded-xl p-5 shadow-lg">
+                            <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-200 text-tertiary">
+                                <i class="fa fa-comments mr-2"></i>评论区
+                            </h2>
+                            
+                            <!-- 评论输入 -->
+                            <div class="mb-6">
+                                <textarea id="maleCommentInput" class="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-tertiary/50 resize-none" rows="3" placeholder="发表你的评论..."></textarea>
+                                <div class="flex justify-end mt-2">
+                                    <button id="malePostComment" class="bg-tertiary hover:bg-tertiary/90 text-white py-2 px-4 rounded-lg transition-custom">
+                                        <i class="fa fa-paper-plane mr-1"></i> 发表评论
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 评论列表 -->
+                            <div id="maleComments" class="space-y-4 max-h-[300px] overflow-y-auto scrollbar-hide pr-2">
+                                <!-- 评论将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 管理员登录区 -->
+        <footer class="bg-white border-t border-gray-200 py-6">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <p class="text-gray-600 mb-4 md:mb-0">© 2023 校园之星评选系统 - 公平公正公开</p>
+                    
+                    <div class="flex items-center">
+                        <input type="password" id="adminPassword" placeholder="管理员密码" class="border border-gray-300 rounded-lg px-4 py-2 mr-2 focus:outline-none focus:ring-2 focus:ring-primary/50 w-48">
+                        <button id="adminLogin" class="bg-primary hover:bg-primary/90 text-white py-2 px-4 rounded-lg transition-custom">
+                            <i class="fa fa-lock mr-1"></i> 管理员登录
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 管理员功能区（默认隐藏） -->
+                <div id="adminPanel" class="hidden mt-6 pt-6 border-t border-gray-200">
+                    <h3 class="text-lg font-bold mb-4 text-primary">管理员功能</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-medium mb-2">数据管理</h4>
+                            <div class="flex flex-wrap gap-2">
+                                <button id="resetFemaleVotes" class="bg-secondary/10 hover:bg-secondary/20 text-secondary py-1 px-3 rounded-lg transition-custom text-sm">
+                                    重置校花投票
+                                </button>
+                                <button id="resetMaleVotes" class="bg-tertiary/10 hover:bg-tertiary/20 text-tertiary py-1 px-3 rounded-lg transition-custom text-sm">
+                                    重置校草投票
+                                </button>
+                                <button id="resetAllVotes" class="bg-red-100 hover:bg-red-200 text-red-600 py-1 px-3 rounded-lg transition-custom text-sm">
+                                    重置所有投票
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-medium mb-2">数据导出</h4>
+                            <div class="flex flex-wrap gap-2">
+                                <button id="exportFemaleData" class="bg-secondary/10 hover:bg-secondary/20 text-secondary py-1 px-3 rounded-lg transition-custom text-sm">
+                                    导出校花数据
+                                </button>
+                                <button id="exportMaleData" class="bg-tertiary/10 hover:bg-tertiary/20 text-tertiary py-1 px-3 rounded-lg transition-custom text-sm">
+                                    导出校草数据
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 添加候选人模态框 -->
+    <div id="addCandidateModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 transform transition-all">
+            <h3 class="text-xl font-bold mb-4" id="modalTitle">添加候选人</h3>
+            <div class="mb-4">
+                <label for="candidateName" class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                <input type="text" id="candidateName" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50">
+            </div>
+            <div class="mb-4">
+                <label for="candidateDesc" class="block text-sm font-medium text-gray-700 mb-1">简介（可选）</label>
+                <textarea id="candidateDesc" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" rows="3" placeholder="简要介绍一下候选人..."></textarea>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button id="cancelAddCandidate" class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100 transition-custom">
+                    取消
+                </button>
+                <button id="confirmAddCandidate" class="bg-primary hover:bg-primary/90 text-white py-2 px-4 rounded-lg transition-custom">
+                    确认添加
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改候选人票数模态框 -->
+    <div id="editVotesModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 transform transition-all">
+            <h3 class="text-xl font-bold mb-4">修改票数</h3>
+            <p id="editCandidateName" class="text-gray-600 mb-4">候选人：张三</p>
+            <div class="mb-4">
+                <label for="candidateVotes" class="block text-sm font-medium text-gray-700 mb-1">票数</label>
+                <input type="number" id="candidateVotes" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50" min="0">
+            </div>
+            <div class="flex justify-end gap-2">
+                <button id="cancelEditVotes" class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100 transition-custom">
+                    取消
+                </button>
+                <button id="confirmEditVotes" class="bg-primary hover:bg-primary/90 text-white py-2 px-4 rounded-lg transition-custom">
+                    确认修改
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除候选人确认模态框 -->
+    <div id="deleteCandidateModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 transform transition-all">
+            <h3 class="text-xl font-bold mb-2 text-red-600">确认删除</h3>
+            <p id="deleteCandidateName" class="text-gray-600 mb-6">您确定要删除候选人"张三"吗？此操作不可撤销。</p>
+            <div class="flex justify-end gap-2">
+                <button id="cancelDeleteCandidate" class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100 transition-custom">
+                    取消
+                </button>
+                <button id="confirmDeleteCandidate" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-custom">
+                    确认删除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知提示 -->
+    <div id="notification" class="fixed top-20 right-4 bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 flex items-center z-50">
+        <i id="notificationIcon" class="fa fa-info-circle mr-2"></i>
+        <span id="notificationText">通知内容</span>
+    </div>
+
+    <script>
+        // 数据模型
+        const appData = {
+            // 默认管理员密码
+            adminPassword: 'admin123',
+            // 当前是否为管理员模式
+            isAdmin: false,
+            // 当前选中的性别（female/male）
+            currentGender: 'female',
+            // 存储用户是否已投票（使用localStorage）
+            userVoted: {
+                female: false,
+                male: false
+            },
+            // 候选人数据
+            candidates: {
+                female: [
+                    { id: 1, name: '李婷', description: '高一(3)班', votes: 12, added: new Date().toISOString() },
+                    { id: 2, name: '王芳', description: '高二(1)班', votes: 8, added: new Date().toISOString() },
+                    { id: 3, name: '张倩', description: '高三(2)班', votes: 15, added: new Date().toISOString() }
+                ],
+                male: [
+                    { id: 1, name: '刘强', description: '高一(5)班', votes: 10, added: new Date().toISOString() },
+                    { id: 2, name: '陈明', description: '高二(3)班', votes: 14, added: new Date().toISOString() },
+                    { id: 3, name: '赵刚', description: '高三(1)班', votes: 7, added: new Date().toISOString() }
+                ]
+            },
+            // 评论数据
+            comments: {
+                female: [
+                    { id: 1, content: '李婷很优秀！支持她！', time: new Date(Date.now() - 3600000).toISOString() },
+                    { id: 2, content: '张倩是我们班的，人美心善！', time: new Date(Date.now() - 1800000).toISOString() }
+                ],
+                male: [
+                    { id: 1, content: '陈明打篮球超帅！', time: new Date(Date.now() - 2700000).toISOString() },
+                    { id: 2, content: '支持刘强！', time: new Date(Date.now() - 900000).toISOString() }
+                ]
+            },
+            // 图表实例
+            charts: {
+                female: null,
+                male: null
+            }
+        };
+
+        // DOM元素
+        const elements = {
+            // 标签和区域
+            femaleTab: document.getElementById('femaleTab'),
+            maleTab: document.getElementById('maleTab'),
+            tabIndicator: document.getElementById('tabIndicator'),
+            femaleSection: document.getElementById('femaleSection'),
+            maleSection: document.getElementById('maleSection'),
+            
+            // 候选人容器
+            femaleCandidates: document.getElementById('femaleCandidates'),
+            maleCandidates: document.getElementById('maleCandidates'),
+            
+            // 添加候选人按钮和容器
+            addFemaleCandidateContainer: document.getElementById('addFemaleCandidateContainer'),
+            addMaleCandidateContainer: document.getElementById('addMaleCandidateContainer'),
+            addFemaleCandidate: document.getElementById('addFemaleCandidate'),
+            addMaleCandidate: document.getElementById('addMaleCandidate'),
+            
+            // 评论相关
+            femaleCommentInput: document.getElementById('femaleCommentInput'),
+            maleCommentInput: document.getElementById('maleCommentInput'),
+            femalePostComment: document.getElementById('femalePostComment'),
+            malePostComment: document.getElementById('malePostComment'),
+            femaleComments: document.getElementById('femaleComments'),
+            maleComments: document.getElementById('maleComments'),
+            
+            // 管理员相关
+            adminPassword: document.getElementById('adminPassword'),
+            adminLogin: document.getElementById('adminLogin'),
+            adminPanel: document.getElementById('adminPanel'),
+            resetFemaleVotes: document.getElementById('resetFemaleVotes'),
+            resetMaleVotes: document.getElementById('resetMaleVotes'),
+            resetAllVotes: document.getElementById('resetAllVotes'),
+            exportFemaleData: document.getElementById('exportFemaleData'),
+            exportMaleData: document.getElementById('exportMaleData'),
+            
+            // 模态框相关
+            addCandidateModal: document.getElementById('addCandidateModal'),
+            modalTitle: document.getElementById('modalTitle'),
+            candidateName: document.getElementById('candidateName'),
+            candidateDesc: document.getElementById('candidateDesc'),
+            cancelAddCandidate: document.getElementById('cancelAddCandidate'),
+            confirmAddCandidate: document.getElementById('confirmAddCandidate'),
+            
+            editVotesModal: document.getElementById('editVotesModal'),
+            editCandidateName: document.getElementById('editCandidateName'),
+            candidateVotes: document.getElementById('candidateVotes'),
+            cancelEditVotes: document.getElementById('cancelEditVotes'),
+            confirmEditVotes: document.getElementById('confirmEditVotes'),
+            
+            deleteCandidateModal: document.getElementById('deleteCandidateModal'),
+            deleteCandidateName: document.getElementById('deleteCandidateName'),
+            cancelDeleteCandidate: document.getElementById('cancelDeleteCandidate'),
+            confirmDeleteCandidate: document.getElementById('confirmDeleteCandidate'),
+            
+            // 通知相关
+            notification: document.getElementById('notification'),
+            notificationIcon: document.getElementById('notificationIcon'),
+            notificationText: document.getElementById('notificationText')
+        };
+
+        // 当前操作的候选人ID和性别（用于模态框操作）
+        let currentCandidateId = null;
+        let currentCandidateGender = null;
+        let addingCandidateGender = null;
+
+        // 初始化应用
+        function initApp() {
+            // 从localStorage加载数据
+            loadDataFromLocalStorage();
+            
+            // 初始化图表
+            initCharts();
+            
+            // 渲染候选人列表
+            renderCandidates('female');
+            renderCandidates('male');
+            
+            // 渲染评论
+            renderComments('female');
+            renderComments('male');
+            
+            // 添加事件监听器
+            addEventListeners();
+            
+            // 检查管理员状态
+            checkAdminStatus();
+        }
+
+        // 从localStorage加载数据
+        function loadDataFromLocalStorage() {
+            const savedCandidates = localStorage.getItem('votingSystemCandidates');
+            const savedComments = localStorage.getItem('votingSystemComments');
+            const savedUserVoted = localStorage.getItem('votingSystemUserVoted');
+            const savedIsAdmin = localStorage.getItem('votingSystemIsAdmin');
+            
+            if (savedCandidates) {
+                appData.candidates = JSON.parse(savedCandidates);
+            }
+            
+            if (savedComments) {
+                appData.comments = JSON.parse(savedComments);
+            }
+            
+            if (savedUserVoted) {
+                appData.userVoted = JSON.parse(savedUserVoted);
+            }
+            
+            if (savedIsAdmin) {
+                appData.isAdmin = JSON.parse(savedIsAdmin);
+            }
+        }
+
+        // 保存数据到localStorage
+        function saveDataToLocalStorage() {
+            localStorage.setItem('votingSystemCandidates', JSON.stringify(appData.candidates));
+            localStorage.setItem('votingSystemComments', JSON.stringify(appData.comments));
+            localStorage.setItem('votingSystemUserVoted', JSON.stringify(appData.userVoted));
+            localStorage.setItem('votingSystemIsAdmin', JSON.stringify(appData.isAdmin));
+        }
+
+        // 初始化图表
+        function initCharts() {
+            // 校花图表
+            const femaleCtx = document.getElementById('femaleChart').getContext('2d');
+            appData.charts.female = new Chart(femaleCtx, {
+                type: 'bar',
+                data: getChartData('female'),
+                options: getChartOptions('female')
+            });
+            
+            // 校草图表
+            const maleCtx = document.getElementById('maleChart').getContext('2d');
+            appData.charts.male = new Chart(maleCtx, {
+                type: 'bar',
+                data: getChartData('male'),
+                options: getChartOptions('male')
+            });
+        }
+
+        // 获取图表数据
+        function getChartData(gender) {
+            // 按票数降序排序
+            const sortedCandidates = [...appData.candidates[gender]].sort((a, b) => b.votes - a.votes);
+            
+            return {
+                labels: sortedCandidates.map(c => c.name),
+                datasets: [{
+                    label: gender === 'female' ? '校花票数' : '校草票数',
+                    data: sortedCandidates.map(c => c.votes),
+                    backgroundColor: gender === 'female' ? 'rgba(236, 72, 153, 0.7)' : 'rgba(59, 130, 246, 0.7)',
+                    borderColor: gender === 'female' ? 'rgba(236, 72, 153, 1)' : 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                }]
+            };
+        }
+
+        // 获取图表配置
+        function getChartOptions(gender) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `票数: ${context.raw}`;
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    duration: 1000,
+                    easing: 'easeOutQuart'
+                }
+            };
+        }
+
+        // 更新图表
+        function updateChart(gender) {
+            appData.charts[gender].data = getChartData(gender);
+            appData.charts[gender].update();
+        }
+
+        // 渲染候选人列表
+        function renderCandidates(gender) {
+            const container = gender === 'female' ? elements.femaleCandidates : elements.maleCandidates;
+            const candidates = appData.candidates[gender];
+            
+            // 清空容器
+            container.innerHTML = '';
+            
+            if (candidates.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fa fa-info-circle text-2xl mb-2"></i>
+                        <p>暂无候选人，请联系管理员添加</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 按票数降序排序
+            const sortedCandidates = [...candidates].sort((a, b) => b.votes - a.votes);
+            
+            // 渲染每个候选人
+            sortedCandidates.forEach(candidate => {
+                const isVoted = appData.userVoted[gender];
+                const card = document.createElement('div');
+                card.className = 'border border-gray-200 rounded-lg p-4 hover:shadow-md transition-custom';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h3 class="font-bold text-lg">${candidate.name}</h3>
+                            <p class="text-gray-600 text-sm">${candidate.description || '暂无简介'}</p>
+                        </div>
+                        ${appData.isAdmin ? `
+                            <div class="flex space-x-1">
+                                <button class="edit-votes-btn text-primary hover:text-primary/80 p-1" data-id="${candidate.id}" data-gender="${gender}">
+                                    <i class="fa fa-pencil"></i>
+                                </button>
+                                <button class="delete-candidate-btn text-red-500 hover:text-red-700 p-1" data-id="${candidate.id}" data-gender="${gender}">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700 font-medium">
+                            <i class="fa fa-thumbs-up ${gender === 'female' ? 'text-secondary' : 'text-tertiary'} mr-1"></i>
+                            票数: ${candidate.votes}
+                        </span>
+                        <button class="vote-btn ${isVoted ? 'bg-gray-300 cursor-not-allowed' : (gender === 'female' ? 'bg-secondary hover:bg-secondary/90' : 'bg-tertiary hover:bg-tertiary/90')} text-white py-1 px-3 rounded-lg transition-custom text-sm" 
+                            data-id="${candidate.id}" 
+                            data-gender="${gender}"
+                            ${isVoted ? 'disabled' : ''}>
+                            ${isVoted ? '已投票' : '投票'}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            
+            // 添加投票按钮事件监听
+            document.querySelectorAll('.vote-btn').forEach(btn => {
+                btn.addEventListener('click', handleVote);
+            });
+            
+            // 添加编辑票数按钮事件监听（管理员）
+            document.querySelectorAll('.edit-votes-btn').forEach(btn => {
+                btn.addEventListener('click', handleEditVotes);
+            });
+            
+            // 添加删除候选人按钮事件监听（管理员）
+            document.querySelectorAll('.delete-candidate-btn').forEach(btn => {
+                btn.addEventListener('click', handleDeleteCandidate);
+            });
+        }
+
+        // 渲染评论
+        function renderComments(gender) {
+            const container = gender === 'female' ? elements.femaleComments : elements.maleComments;
+            const comments = appData.comments[gender];
+            
+            // 清空容器
+            container.innerHTML = '';
+            
+            if (comments.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fa fa-comments-o text-2xl mb-2"></i>
+                        <p>暂无评论，快来发表第一条评论吧</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 按时间降序排序（最新的在前）
+            const sortedComments = [...comments].sort((a, b) => new Date(b.time) - new Date(a.time));
+            
+            // 渲染每条评论
+            sortedComments.forEach(comment => {
+                const commentEl = document.createElement('div');
+                commentEl.className = 'border-b border-gray-100 pb-3 last:border-0';
+                
+                // 格式化时间
+                const date = new Date(comment.time);
+                const formattedTime = `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                
+                commentEl.innerHTML = `
+                    <p class="text-gray-800 mb-1">${comment.content}</p>
+                    <p class="text-gray-500 text-xs">${formattedTime}</p>
+                `;
+                container.appendChild(commentEl);
+            });
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            const iconMap = {
+                info: 'fa-info-circle',
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle'
+            };
+            
+            const colorMap = {
+                info: 'bg-gray-800',
+                success: 'bg-green-600',
+                error: 'bg-red-600',
+                warning: 'bg-yellow-600'
+            };
+            
+            elements.notificationText.textContent = message;
+            elements.notificationIcon.className = `fa ${iconMap[type]} mr-2`;
+            elements.notification.className = `fixed top-20 right-4 ${colorMap[type]} text-white px-4 py-3 rounded-lg shadow-lg transform translate-x-0 transition-transform duration-300 flex items-center z-50`;
+            
+            // 3秒后隐藏通知
+            setTimeout(() => {
+                elements.notification.className = `fixed top-20 right-4 ${colorMap[type]} text-white px-4 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 flex items-center z-50`;
+            }, 3000);
+        }
+
+        // 处理投票
+        function handleVote(e) {
+            const candidateId = parseInt(e.currentTarget.dataset.id);
+            const gender = e.currentTarget.dataset.gender;
+            
+            // 查找候选人
+            const candidate = appData.candidates[gender].find(c => c.id === candidateId);
+            if (!candidate) return;
+            
+            // 增加票数
+            candidate.votes += 1;
+            
+            // 标记用户已投票
+            appData.userVoted[gender] = true;
+            
+            // 保存数据
+            saveDataToLocalStorage();
+            
+            // 更新UI
+            renderCandidates(gender);
+            updateChart(gender);
+            
+            // 显示成功通知
+            showNotification(`成功为${candidate.name}投票！`, 'success');
+        }
+
+        // 处理添加候选人
+        function handleAddCandidate(gender) {
+            addingCandidateGender = gender;
+            elements.modalTitle.textContent = gender === 'female' ? '添加校花候选人' : '添加校草候选人';
+            elements.candidateName.value = '';
+            elements.candidateDesc.value = '';
+            elements.addCandidateModal.classList.remove('hidden');
+        }
+
+        // 确认添加候选人
+        function confirmAddCandidate() {
+            const name = elements.candidateName.value.trim();
+            const description = elements.candidateDesc.value.trim();
+            
+            if (!name) {
+                showNotification('请输入候选人姓名', 'error');
+                return;
+            }
+            
+            const gender = addingCandidateGender;
+            
+            // 生成新ID
+            const newId = appData.candidates[gender].length > 0 
+                ? Math.max(...appData.candidates[gender].map(c => c.id)) + 1 
+                : 1;
+            
+            // 添加新候选人
+            appData.candidates[gender].push({
+                id: newId,
+                name: name,
+                description: description,
+                votes: 0,
+                added: new Date().toISOString()
+            });
+            
+            // 保存数据
+            saveDataToLocalStorage();
+            
+            // 更新UI
+            renderCandidates(gender);
+            updateChart(gender);
+            
+            // 关闭模态框
+            elements.addCandidateModal.classList.add('hidden');
+            
+            // 显示成功通知
+            showNotification(`成功添加候选人${name}`, 'success');
+        }
+
+        // 处理编辑票数
+        function handleEditVotes(e) {
+            currentCandidateId = parseInt(e.currentTarget.dataset.id);
+            currentCandidateGender = e.currentTarget.dataset.gender;
+            
+            // 查找候选人
+            const candidate = appData.candidates[currentCandidateGender].find(c => c.id === currentCandidateId);
+            if (!candidate) return;
+            
+            // 填充模态框
+            elements.editCandidateName.textContent = `候选人：${candidate.name}`;
+            elements.candidateVotes.value = candidate.votes;
+            
+            // 显示模态框
+            elements.editVotesModal.classList.remove('hidden');
+        }
+
+        // 确认修改票数
+        function confirmEditVotes() {
+            const votes = parseInt(elements.candidateVotes.value);
+            
+            if (isNaN(votes) || votes < 0) {
+                showNotification('请输入有效的票数', 'error');
+                return;
+            }
+            
+            // 查找候选人
+            const candidate = appData.candidates[currentCandidateGender].find(c => c.id === currentCandidateId);
+            if (!candidate) return;
+            
+            // 更新票数
+            candidate.votes = votes;
+            
+            // 保存数据
+            saveDataToLocalStorage();
+            
+            // 更新UI
+            renderCandidates(currentCandidateGender);
+            updateChart(currentCandidateGender);
+            
+            // 关闭模态框
+            elements.editVotesModal.classList.add('hidden');
+            
+            // 显示成功通知
+            showNotification(`成功更新${candidate.name}的票数`, 'success');
+        }
+
+        // 处理删除候选人
+        function handleDeleteCandidate(e) {
+            currentCandidateId = parseInt(e.currentTarget.dataset.id);
+            currentCandidateGender = e.currentTarget.dataset.gender;
+            
+            // 查找候选人
+            const candidate = appData.candidates[currentCandidateGender].find(c => c.id === currentCandidateId);
+            if (!candidate) return;
+            
+            // 填充模态框
+            elements.deleteCandidateName.textContent = `您确定要删除候选人"${candidate.name}"吗？此操作不可撤销。`;
+            
+            // 显示模态框
+            elements.deleteCandidateModal.classList.remove('hidden');
+        }
+
+        // 确认删除候选人
+        function confirmDeleteCandidate() {
+            // 查找候选人索引
+            const index = appData.candidates[currentCandidateGender].findIndex(c => c.id === currentCandidateId);
+            if (index === -1) return;
+            
+            // 保存候选人名称用于通知
+            const candidateName = appData.candidates[currentCandidateGender][index].name;
+            
+            // 删除候选人
+            appData.candidates[currentCandidateGender].splice(index, 1);
+            
+            // 保存数据
+            saveDataToLocalStorage();
+            
+            // 更新UI
+            renderCandidates(currentCandidateGender);
+            updateChart(currentCandidateGender);
+            
+            // 关闭模态框
+            elements.deleteCandidateModal.classList.add('hidden');
+            
+            // 显示成功通知
+            showNotification(`已删除候选人${candidateName}`, 'success');
+        }
+
+        // 处理发表评论
+        function handlePostComment(gender) {
+            const input = gender === 'female' ? elements.femaleCommentInput : elements.maleCommentInput;
+            const content = input.value.trim();
+            
+            if (!content) {
+                showNotification('请输入评论内容', 'error');
+                return;
+            }
+            
+            // 生成新评论ID
+            const newId = appData.comments[gender].length > 0 
+                ? Math.max(...appData.comments[gender].map(c => c.id)) + 1 
+                : 1;
+            
+            // 添加新评论
+            appData.comments[gender].push({
+                id: newId,
+                content: content,
+                time: new Date().toISOString()
+            });
+            
+            // 清空输入框
+            input.value = '';
+            
+            // 保存数据
+            saveDataToLocalStorage();
+            
+            // 更新UI
+            renderComments(gender);
+            
+            // 显示成功通知
+            showNotification('评论发表成功', 'success');
+        }
+
+        // 切换性别标签
+        function switchTab(gender) {
+            if (appData.currentGender === gender) return;
+            
+            appData.currentGender = gender;
+            
+            // 更新标签指示器
+            if (gender === 'female') {
+                elements.tabIndicator.style.left = '0';
+                elements.tabIndicator.textContent = '校花评选';
+                elements.femaleSection.classList.remove('hidden');
+                elements.maleSection.classList.add('hidden');
+            } else {
+                elements.tabIndicator.style.left = '50%';
+                elements.tabIndicator.textContent = '校草评选';
+                elements.femaleSection.classList.add('hidden');
+                elements.maleSection.classList.remove('hidden');
+            }
+        }
+
+        // 管理员登录
+        function adminLogin() {
+            const password = elements.adminPassword.value.trim();
+            
+            if (password === appData.adminPassword) {
+                appData.isAdmin = true;
+                saveDataToLocalStorage();
+                checkAdminStatus();
+                elements.adminPassword.value = '';
+                showNotification('管理员登录成功', 'success');
+            } else {
+                showNotification('密码错误，请重试', 'error');
+            }
+        }
+
+        // 检查管理员状态并更新UI
+        function checkAdminStatus() {
+            if (appData.isAdmin) {
+                elements.addFemaleCandidateContainer.classList.remove('hidden');
+                elements.addMaleCandidateContainer.classList.remove('hidden');
+                elements.adminPanel.classList.remove('hidden');
+                elements.adminPassword.disabled = true;
+                elements.adminLogin.textContent = '已登录';
+                elements.adminLogin.disabled = true;
+                elements.adminLogin.classList.add('bg-gray-400');
+                elements.adminLogin.classList.remove('bg-primary', 'hover:bg-primary/90');
+            } else {
+                elements.addFemaleCandidateContainer.classList.add('hidden');
+                elements.addMaleCandidateContainer.classList.add('hidden');
+                elements.adminPanel.classList.add('hidden');
+                elements.adminPassword.disabled = false;
+                elements.adminLogin.textContent = '<i class="fa fa-lock mr-1"></i> 管理员登录';
+                elements.adminLogin.disabled = false;
+                elements.adminLogin.classList.remove('bg-gray-400');
+                elements.adminLogin.classList.add('bg-primary', 'hover:bg-primary/90');
+            }
+            
+            // 重新渲染候选人列表以显示/隐藏管理员按钮
+            renderCandidates('female');
+            renderCandidates('male');
+        }
+
+        // 重置投票
+        function resetVotes(gender = null) {
+            if (gender) {
+                // 重置特定性别的投票
+                appData.candidates[gender].forEach(c => c.votes = 0);
+                showNotification(`${gender === 'female' ? '校花' : '校草'}投票已重置`, 'success');
+            } else {
+                // 重置所有投票
+                appData.candidates.female.forEach(c => c.votes = 0);
+                appData.candidates.male.forEach(c => c.votes = 0);
+                showNotification('所有投票已重置', 'success');
+            }
+            
+            // 重置用户投票状态
+            appData.userVoted.female = false;
+            appData.userVoted.male = false;
+            
+            // 保存数据
+            saveDataToLocalStorage();
+            
+            // 更新UI
+            if (gender) {
+                renderCandidates(gender);
+                updateChart(gender);
+            } else {
+                renderCandidates('female');
+                renderCandidates('male');
+                updateChart('female');
+                updateChart('male');
+            }
+        }
+
+        // 导出数据
+        function exportData(gender) {
+            const data = {
+                candidates: appData.candidates[gender],
+                comments: appData.comments[gender],
+                exportTime: new Date().toISOString()
+            };
+            
+            const jsonString = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${gender === 'female' ? '校花' : '校草'}评选数据_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification(`${gender === 'female' ? '校花' : '校草'}数据导出成功`, 'success');
+        }
+
+        // 添加事件监听器
+        function addEventListeners() {
+            // 标签切换
+            elements.femaleTab.addEventListener('click', () => switchTab('female'));
+            elements.maleTab.addEventListener('click', () => switchTab('male'));
+            
+            // 添加候选人
+            elements.addFemaleCandidate.addEventListener('click', () => handleAddCandidate('female'));
+            elements.addMaleCandidate.addEventListener('click', () => handleAddCandidate('male'));
+            
+            // 取消添加候选人
+            elements.cancelAddCandidate.addEventListener('click', () => {
+                elements.addCandidateModal.classList.add('hidden');
+            });
+            
+            // 确认添加候选人
+            elements.confirmAddCandidate.addEventListener('click', confirmAddCandidate);
+            
+            // 取消修改票数
+            elements.cancelEditVotes.addEventListener('click', () => {
+                elements.editVotesModal.classList.add('hidden');
+            });
+            
+            // 确认修改票数
+            elements.confirmEditVotes.addEventListener('click', confirmEditVotes);
+            
+            // 取消删除候选人
+            elements.cancelDeleteCandidate.addEventListener('click', () => {
+                elements.deleteCandidateModal.classList.add('hidden');
+            });
+            
+            // 确认删除候选人
+            elements.confirmDeleteCandidate.addEventListener('click', confirmDeleteCandidate);
+            
+            // 发表评论
+            elements.femalePostComment.addEventListener('click', () => handlePostComment('female'));
+            elements.malePostComment.addEventListener('click', () => handlePostComment('male'));
+            
+            // 评论框回车提交
+            elements.femaleCommentInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handlePostComment('female');
+                }
+            });
+            
+            elements.maleCommentInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handlePostComment('male');
+                }
+            });
+            
+            // 管理员登录
+            elements.adminLogin.addEventListener('click', adminLogin);
+            
+            // 管理员密码回车登录
+            elements.adminPassword.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    adminLogin();
+                }
+            });
+            
+            // 重置投票
+            elements.resetFemaleVotes.addEventListener('click', () => resetVotes('female'));
+            elements.resetMaleVotes.addEventListener('click', () => resetVotes('male'));
+            elements.resetAllVotes.addEventListener('click', () => {
+                if (confirm('确定要重置所有投票数据吗？此操作不可撤销！')) {
+                    resetVotes();
+                }
+            });
+            
+            // 导出数据
+            elements.exportFemaleData.addEventListener('click', () => exportData('female'));
+            elements.exportMaleData.addEventListener('click', () => exportData('male'));
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
